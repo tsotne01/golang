@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/go-playground/validator/v10"
 	uuid "github.com/google/uuid"
 )
 
@@ -14,6 +15,11 @@ type application struct {
 
 var users []User
 
+func ValidateStruct(user User) error {
+	validate := validator.New()
+	return validate.Struct(user)
+}
+
 func (app *application) handleAddUsers(w http.ResponseWriter, r *http.Request) {
 	var user User
 	defer r.Body.Close()
@@ -22,6 +28,23 @@ func (app *application) handleAddUsers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid credentials", http.StatusBadRequest)
 		return
 	}
+	// validator := validator.New()
+	// if err := validator.Struct(user); err != nil {
+	// 	http.Error(w, "Invalid credentials", http.StatusBadRequest)
+	// 	return
+	// }
+	if err := ValidateStruct(user); err != nil {
+		http.Error(w, "Invalid credentials", http.StatusBadRequest)
+		return
+	}
+
+	for _, usr := range users {
+		if usr.Email == user.Email {
+			http.Error(w, "This Email Is Already Used!", http.StatusBadRequest)
+			return
+		}
+	}
+
 	user.UserId = uuid.New()
 	users = append(users, user)
 	fmt.Printf("Received: %+v\n", user)
@@ -39,6 +62,10 @@ func (app *application) handlePatch(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		http.Error(w, "Invalid Credentials", http.StatusBadRequest)
+	}
+	if err := ValidateStruct(user); err != nil {
+		http.Error(w, "Invalid credentials", http.StatusBadRequest)
+		return
 	}
 
 	idStr := r.PathValue("userId")
